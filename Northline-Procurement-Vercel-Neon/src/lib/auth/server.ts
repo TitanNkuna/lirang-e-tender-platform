@@ -3,7 +3,7 @@ import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
-import { ensureDbReady, getPglite } from "../db";
+import { getPglite } from "../db";
 import { pgliteDialect } from "./pglite-dialect";
 
 const env = (key: string): string | undefined => {
@@ -12,11 +12,7 @@ const env = (key: string): string | undefined => {
 };
 
 const databaseUrl = env("DATABASE_URL");
-
-const globalRef = globalThis as typeof globalThis & {
-  __authSecret__?: string;
-};
-
+const globalRef = globalThis as typeof globalThis & { __authSecret__?: string };
 function localSecret(): string {
   globalRef.__authSecret__ ??= randomBytes(32).toString("hex");
   return globalRef.__authSecret__;
@@ -24,34 +20,21 @@ function localSecret(): string {
 
 const explicitBaseURL = env("BETTER_AUTH_URL");
 const baseURL = explicitBaseURL ?? "http://localhost:8080";
-
-const trustedOrigins = [
-  baseURL,
-  "http://localhost:8080",
-  "http://127.0.0.1:8080",
-];
+const trustedOrigins = [baseURL, "http://localhost:8080", "http://127.0.0.1:8080"];
 
 const database = databaseUrl
-  ? new Pool({ connectionString: databaseUrl, max: 5 })
-  : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
-
-void ensureDbReady();
+  ? new Pool({ connectionString: databaseUrl, max: 1 })
+  : process.env.VERCEL === "1"
+    ? undefined
+    : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
 
 export const auth = betterAuth({
   baseURL,
   secret: env("BETTER_AUTH_SECRET") ?? localSecret(),
-  database,
+  ...(database ? { database } : {}),
   trustedOrigins,
-  emailAndPassword: {
-    enabled: true,
-    minPasswordLength: 8,
-  },
-  session: {
-    cookieCache: {
-      enabled: true,
-      maxAge: 300,
-    },
-  },
+  emailAndPassword: { enabled: true, minPasswordLength: 8 },
+  session: { cookieCache: { enabled: true, maxAge: 300 } },
   advanced: {
     useSecureCookies: Boolean(explicitBaseURL?.startsWith("https://")),
     defaultCookieAttributes: {
@@ -64,7 +47,7 @@ export const auth = betterAuth({
   plugins: [tanstackStartCookies()],
 });
 
-export const authConfigured = true;
+export const authConfigured = Boolean(database);
 
 export async function getSessionUser() {
   const request = getRequest();
