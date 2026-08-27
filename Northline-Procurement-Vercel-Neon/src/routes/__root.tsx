@@ -12,9 +12,23 @@ import appCss from "../styles.css?url";
 const APP_NAME = "Northline";
 
 const fetchSessionUser = createServerFn({ method: "GET" }).handler(async () => {
-  const { getSessionUser } = await import("@/lib/auth/verify.server");
-  const u = await getSessionUser();
-  return u ? { id: u.id, email: u.email } : null;
+  try {
+    const { getSessionUserSafe } = await import("@/lib/auth/verify.server");
+    const u = await getSessionUserSafe();
+    return u ? { id: u.id, email: u.email } : null;
+  } catch (err) {
+    // Every route's beforeLoad calls this, so an unhandled failure here 500s
+    // the entire site including the public homepage. Log the real cause
+    // instead of letting it surface as an unlabeled 500.
+    console.error("[fetchSessionUser] failed:", err);
+    if (err instanceof Error) {
+      console.error("[fetchSessionUser] message:", err.message);
+      console.error("[fetchSessionUser] stack:", err.stack);
+    }
+    // Fail open to "signed out" rather than crashing the whole page — a
+    // session lookup failure should never take down the public site.
+    return null;
+  }
 });
 
 export const Route = createRootRoute({
