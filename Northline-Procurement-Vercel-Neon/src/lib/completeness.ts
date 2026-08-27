@@ -215,6 +215,7 @@ export function rankBid(
   if (summary.qualityNotes.length > 60) qualityScore = Math.min(100, qualityScore + 5);
   if (summary.warranty !== "—") qualityScore = Math.min(100, qualityScore + 5);
 
+  // Prefer payment terms near 30 days (buyer-friendly without being extreme)
   let paymentScore = 50;
   if (summary.paymentDays != null) {
     const ideal = 30;
