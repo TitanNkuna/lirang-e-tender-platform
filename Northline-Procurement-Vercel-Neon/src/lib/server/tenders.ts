@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { pickSuggestedWinner } from "@/lib/completeness";
 import { getSql } from "@/lib/db";
 import { SAMPLE_TENDER, sampleSteelBids } from "@/lib/presets";
 import type { TemplateSchema, TenderVisibility } from "@/lib/types";
-import { mapSubmission, mapTender } from "./map";
+import { mapSubmission, mapTender, parsePayload, parseSchema } from "./map";
 
 async function profileOf(userId: string) {
   const sql = await getSql();
@@ -165,7 +166,7 @@ export const listInvites = createServerFn({ method: "GET" })
     const { sql, profile } = await profileOf(context.userId);
     if (profile?.role !== "procurement") return [];
     const owned = await sql<{ id: number }>`
-      select id from tenders where id = ${tenderId} and owner_id = ${context.userId}
+      select id from tenders where id = ${data.tenderId} and owner_id = ${context.userId}
     `;
     if (!owned[0]) return [];
     return sql<{
@@ -320,4 +321,60 @@ export const deleteTender = createServerFn({ method: "POST" })
     `;
     if (!deleted[0]) throw new Error("Tender not found.");
     return { ok: true as const };
+  });
+
+/** Suggested winner per open/closed tender owned by this procurement user. */
+export const listSuggestedWinners = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    const { sql, profile } = await profileOf(context.userId);
+    if (profile?.role !== "procurement") return [];
+    const tenders = await sql<{
+      id: number;
+      title: string;
+      status: string;
+      schema_json: string;
+    }>`
+      select id, title, status, schema_json from tenders
+      where owner_id = ${context.userId}
+        and status in ('open', 'closed', 'awarded')
+      order by created_at desc
+      limit 30
+    `;
+    const out: Array<{
+      tenderId: number;
+      tenderTitle: string;
+      tenderStatus: string;
+      winner: NonNullable<ReturnType<typeof pickSuggestedWinner>>;
+    }> = [];
+    for (const t of tenders) {
+      const subs = await sql<{
+        id: number;
+        company_name: string;
+        payload_json: string;
+        status: string;
+      }>`
+        select id, company_name, payload_json, status from submissions
+        where tender_id = ${t.id} and status <> 'draft'
+      `;
+      if (subs.length === 0) continue;
+      const schema = parseSchema(t.schema_json);
+      const winner = pickSuggestedWinner(
+        schema,
+        subs.map((s) => ({
+          id: Number(s.id),
+          companyName: s.company_name,
+          payload: parsePayload(s.payload_json),
+          status: s.status,
+        })),
+      );
+      if (!winner) continue;
+      out.push({
+        tenderId: Number(t.id),
+        tenderTitle: t.title,
+        tenderStatus: t.status,
+        winner,
+      });
+    }
+    return out;
   });
