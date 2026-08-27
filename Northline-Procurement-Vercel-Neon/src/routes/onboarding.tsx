@@ -5,6 +5,7 @@ import { Wordmark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUser, useCurrentUserState } from "@/lib/auth/use-current-user";
 import { getMyProfile, saveProfile } from "@/lib/server/profile";
@@ -35,10 +36,16 @@ function Onboarding() {
   const [role, setRole] = useState<Role>(intent ?? "procurement");
   const [companyName, setCompanyName] = useState("");
   const [contactName, setContactName] = useState(current?.displayName ?? "");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const save = useMutation({
-    mutationFn: () => saveProfile({ data: { role, companyName, contactName } }),
+    mutationFn: () =>
+      saveProfile({
+        data: { role, companyName, contactName, phone, email, address },
+      }),
     onSuccess: () => navigate({ to: "/desk" }),
     onError: (err: Error) => setError(err.message),
   });
@@ -58,8 +65,8 @@ function Onboarding() {
       <Wordmark />
       <h1 className="mt-10 font-display text-4xl">Which desk is yours?</h1>
       <p className="mt-2 text-muted">
-        Procurement issues the template. Contractors fill it. You can switch later
-        in settings.
+        Set your company profile. Procurement issues tenders; contractors bid. Both sides can
+        verify contact details.
       </p>
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -72,7 +79,7 @@ function Onboarding() {
         <RoleCard
           active={role === "contractor"}
           title="Contractor"
-          body="See tenders sent to you, fill the sheet, submit your prices."
+          body="See open jobs, fill the sheet, submit prices. Your profile is visible to buyers."
           onClick={() => setRole("contractor")}
         />
       </div>
@@ -96,11 +103,43 @@ function Onboarding() {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="contact">Your name</Label>
+          <Label htmlFor="contact">Contact name</Label>
           <Input
             id="contact"
             value={contactName}
             onChange={(e) => setContactName(e.target.value)}
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="phone">Phone</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+27 …"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.co.za"
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="address">Address</Label>
+          <Textarea
+            id="address"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            rows={2}
+            placeholder="Physical or registered address"
           />
         </div>
         {error && <p className="text-sm text-danger">{error}</p>}
