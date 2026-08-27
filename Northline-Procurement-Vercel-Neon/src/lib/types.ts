@@ -43,6 +43,7 @@ export type Profile = {
   phone: string;
   email: string;
   address: string;
+  logoUrl: string;
 };
 
 /** Company profile fields required for every account. */
@@ -109,6 +110,7 @@ export type ContractorDirectoryItem = {
   phone: string;
   email: string;
   address: string;
+  logoUrl: string;
 };
 
 export type CompletenessResult = {
