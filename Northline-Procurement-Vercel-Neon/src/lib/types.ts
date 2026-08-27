@@ -40,6 +40,9 @@ export type Profile = {
   role: Role;
   companyName: string;
   contactName: string;
+  phone: string;
+  email: string;
+  address: string;
 };
 
 export type TemplateRecord = {
@@ -72,6 +75,7 @@ export type TenderRecord = {
   createdAt: string;
   submissionCount: number;
   inviteCount: number;
+  ownerCompanyName?: string;
 };
 
 export type SubmissionRecord = {
@@ -90,6 +94,9 @@ export type ContractorDirectoryItem = {
   userId: string;
   companyName: string;
   contactName: string;
+  phone: string;
+  email: string;
+  address: string;
 };
 
 export type CompletenessResult = {
