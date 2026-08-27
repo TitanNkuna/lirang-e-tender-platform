@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AiPanel } from "@/components/ai-panel";
 import { BidSheet } from "@/components/bid-sheet";
@@ -10,11 +11,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { scoreSubmission } from "@/lib/completeness";
+import { rankBid, scoreSubmission, summarizeBid } from "@/lib/completeness";
 import { getLatestReview, runAiReview } from "@/lib/server/ai";
 import { listContractors } from "@/lib/server/profile";
 import {
   awardSubmission,
+  deleteTender,
   getTender,
   inviteContractors,
   listInvites,
@@ -34,6 +36,7 @@ function TenderDetail() {
   const { id } = Route.useParams();
   const tenderId = Number(id);
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [openBid, setOpenBid] = useState<SubmissionRecord | null>(null);
   const [inviteIds, setInviteIds] = useState<string[]>([]);
 
@@ -65,6 +68,7 @@ function TenderDetail() {
       qc.invalidateQueries({ queryKey: ["review", tenderId] }),
       qc.invalidateQueries({ queryKey: ["invites", tenderId] }),
       qc.invalidateQueries({ queryKey: ["tenders"] }),
+      qc.invalidateQueries({ queryKey: ["owner-submissions"] }),
     ]);
   };
 
@@ -107,19 +111,50 @@ function TenderDetail() {
       await invalidate();
     },
   });
+  const remove = useMutation({
+    mutationFn: () => deleteTender({ data: tenderId }),
+    onSuccess: async () => {
+      toast.success("Tender revoked");
+      await qc.invalidateQueries({ queryKey: ["tenders"] });
+      await navigate({ to: "/desk/tenders" });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const rows = submissions.data ?? [];
+  const schema = tender.data?.schema;
+  const scored = useMemo(() => {
+    if (!schema) return [];
+    const payloads = rows.map((s) => s.payload);
+    return rows.map((s) => {
+      const score = scoreSubmission(schema, s.payload);
+      const summary = summarizeBid(schema, s.payload);
+      const rank = rankBid(schema, s.payload, payloads);
+      return { sub: s, score, summary, rank };
+    });
+  }, [rows, schema]);
+  const suggested = useMemo(() => {
+    if (scored.length === 0) return null;
+    return scored.reduce((best, cur) => (cur.rank.overall > best.rank.overall ? cur : best));
+  }, [scored]);
+  const lowestPrice = useMemo(() => {
+    const withPrice = scored.filter((x) => x.summary.priceTotal != null);
+    if (withPrice.length === 0) return null;
+    return withPrice.reduce((best, cur) =>
+      (cur.summary.priceTotal ?? Infinity) < (best.summary.priceTotal ?? Infinity) ? cur : best,
+    );
+  }, [scored]);
 
   if (tender.isPending) return <Skeleton className="h-64" />;
   const t = tender.data;
   if (!t) return <p className="text-muted">Tender not found.</p>;
-
-  const rows = submissions.data ?? [];
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={tenderBadge(t.status)}>{tenderLabel(t.status)}</Badge>
+            <Badge variant={tenderBadge(t.status.status)}>{tenderLabel(t.status)}</Badge>
             <span className="text-xs text-subtle">{t.category}</span>
           </div>
           <h1 className="mt-2 font-display text-3xl">{t.title}</h1>
@@ -140,16 +175,235 @@ function TenderDetail() {
           <Button onClick={() => ai.mutate()} disabled={ai.isPending || rows.length === 0}>
             {ai.isPending ? "Reading sheets…" : "Run AI review"}
           </Button>
+          <Button
+            variant="danger"
+            disabled={remove.isPending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Revoke this tender? It will be removed for all contractors and submissions will be deleted.",
+                )
+              )
+                remove.mutate();
+            }}
+          >
+            <Trash2 />
+            {remove.isPending ? "Revoking…" : "Revoke tender"}
+          </Button>
         </div>
       </header>
 
-      <Tabs defaultValue="returns">
+      <Tabs defaultValue="overview">
         <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="returns">Returns</TabsTrigger>
           <TabsTrigger value="ai">AI review</TabsTrigger>
           <TabsTrigger value="sheet">Sheet</TabsTrigger>
           <TabsTrigger value="invites">Invites</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview">
+          {submissions.isPending ? (
+            <Skeleton className="h-40" />
+          ) : rows.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted">
+                No submissions yet. Companies that return a sheet appear here with cost and a short
+                summary.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              <div className="rounded-xl border border-ok/40 bg-surface p-4 md:p-5">
+                <p className="text-xs uppercase tracking-[0.14em] text-subtle">
+                  Suggested company
+                </p>
+                {suggested ? (
+                  <>
+                    <p className="mt-2 font-display text-2xl">{suggested.sub.companyName}</p>
+                    <p className="mt-1 text-sm text-muted">
+                      Ranked on form quality, total price, and invoice-to-payment range
+                    </p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                      <div className="rounded-lg bg-raised/60 px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-subtle">Overall</p>
+                        <p className="mt-1 font-display text-xl tabular-nums">{suggested.rank.overall}</p>
+                      </div>
+                      <div className="rounded-lg bg-raised/60 px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-subtle">Quality</p>
+                        <p className="mt-1 font-display text-xl tabular-nums">
+                          {suggested.rank.qualityScore}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-raised/60 px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-subtle">Price</p>
+                        <p className="mt-1 font-display text-xl tabular-nums">{suggested.rank.priceScore}</p>
+                      </div>
+                      <div className="rounded-lg bg-raised/60 px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-subtle">
+                          Invoice → pay
+                        </p>
+                        <p className="mt-1 font-display text-xl tabular-nums">
+                          {suggested.rank.paymentScore}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-3 text-sm">
+                      <span className="rounded-full bg-raised px-3 py-1 tabular-nums">
+                        {formatZar(suggested.summary.priceTotal)}
+                      </span>
+                      <span className="rounded-full bg-raised px-3 py-1">
+                        {suggested.summary.paymentTerms}
+                      </span>
+                      {suggested.summary.leadDaysAvg != null && (
+                        <span className="rounded-full bg-raised px-3 py-1">
+                          Lead ~{suggested.summary.leadDaysAvg} days
+                        </span>
+                      )}
+                      <Button
+                        size="sm"
+                        className="ml-auto"
+                        onClick={() => setOpenBid(suggested.sub)}
+                      >
+                        View sheet
+                      </Button>
+                      {suggested.sub.status === "submitted" && t.status !== "awarded" && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={award.isPending}
+                          onClick={() => award.mutate(suggested.sub.id)}
+                        >
+                          Choose
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className="mt-2 text-sm text-muted">Need at least one submission to rank.</p>
+                )}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-border bg-surface p-4">
+                  <p className="text-xs uppercase tracking-[0.14em] text-subtle">Submissions</p>
+                  <p className="mt-2 font-display text-3xl tabular-nums">{rows.length}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface p-4">
+                  <p className="text-xs uppercase tracking-[0.14em] text-subtle">Complete sheets</p>
+                  <p className="mt-2 font-display text-3xl tabular-nums">
+                    {scored.filter((x) => x.score.complete).length}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface p-4">
+                  <p className="text-xs uppercase tracking-[0.14em] text-subtle">Lowest price</p>
+                  <p className="mt-2 font-display text-lg">
+                    {lowestPrice
+                      ? `${lowestPrice.sub.companyName} · ${formatZar(lowestPrice.summary.priceTotal)}`
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h2 className="mb-3 font-display text-xl">Companies that submitted</h2>
+                <p className="mb-3 text-sm text-muted">
+                  Short form summary, total cost, and scores. Click a row to open the full sheet.
+                </p>
+                <ul className="space-y-3">
+                  {scored
+                    .slice()
+                    .sort((a, b) => b.rank.overall - a.rank.overall)
+                    .map(({ sub: s, score, summary, rank }) => {
+                      const isSuggested = suggested?.sub.id === s.id;
+                      return (
+                        <li key={s.id}>
+                          <button
+                            type="button"
+                            onClick={() => setOpenBid(s)}
+                            className={`w-full rounded-xl border px-4 py-4 text-left hover:border-border-strong ${
+                              isSuggested ? "border-ok bg-surface" : "border-border bg-surface"
+                            }`}
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="font-medium">
+                                  {s.companyName}
+                                  {isSuggested ? " · suggested" : ""}
+                                  {s.isSample ? " · sample" : ""}
+                                </p>
+                                <p className="mt-1 text-sm text-muted">
+                                  {summary.complete
+                                    ? "Form complete"
+                                    : `${score.missing.length} fields missing`}
+                                  {" · "}
+                                  {summary.paymentTerms}
+                                  {summary.paymentDays != null
+                                    ? ` (~${summary.paymentDays}d invoice→pay)`
+                                    : ""}
+                                  {" · score "}
+                                  {rank.overall}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-display text-lg tabular-nums">
+                                  {formatZar(summary.priceTotal)}
+                                </span>
+                                <Badge variant={submissionBadge(s.status, score.complete)}>
+                                  {submissionLabel(s.status)}
+                                </Badge>
+                                {s.status === "submitted" && t.status !== "awarded" && (
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      award.mutate(s.id);
+                                    }}
+                                    disabled={award.isPending}
+                                  >
+                                    Choose
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                            <dl className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-3">
+                              <div>
+                                <dt className="text-subtle">Payment (invoice → pay)</dt>
+                                <dd className="mt-0.5 text-fg">
+                                  {summary.paymentTerms}
+                                  {summary.paymentDays != null
+                                    ? ` · ~${summary.paymentDays}d`
+                                    : ""}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-subtle">Quality / warranty</dt>
+                                <dd className="mt-0.5 line-clamp-2 text-fg">
+                                  {summary.qualityNotes || summary.warranty}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-subtle">Scores</dt>
+                                <dd className="mt-0.5 text-fg">
+                                  Quality {rank.qualityScore} · Price {rank.priceScore} · Payment{" "}
+                                  {rank.paymentScore}
+                                </dd>
+                              </div>
+                            </dl>
+                            {summary.highlights.length > 0 && (
+                              <p className="mt-2 line-clamp-2 text-xs text-muted">
+                                {summary.highlights.join(" · ")}
+                              </p>
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                </ul>
+              </div>
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="returns">
           {submissions.isPending ? (
@@ -210,7 +464,11 @@ function TenderDetail() {
                 <p className="mt-2 text-sm text-muted">
                   AI reads completeness first, then compares price and quality across contractors.
                 </p>
-                <Button className="mt-4" onClick={() => ai.mutate()} disabled={ai.isPending || rows.length === 0}>
+                <Button
+                  className="mt-4"
+                  onClick={() => ai.mutate()}
+                  disabled={ai.isPending || rows.length === 0}
+                >
                   {ai.isPending ? "Reading sheets…" : "Run AI review"}
                 </Button>
               </CardContent>
@@ -219,17 +477,26 @@ function TenderDetail() {
         </TabsContent>
 
         <TabsContent value="sheet">
-          <BidSheet schema={t.schema} payload={{ fields: {}, lineItems: t.schema.lineItems.map(() => ({})) }} readOnly />
+          <BidSheet
+            schema={t.schema}
+            payload={{ fields: {}, lineItems: t.schema.lineItems.map(() => ({})) }}
+            readOnly
+          />
         </TabsContent>
 
         <TabsContent value="invites">
           <div className="space-y-4">
             {(invites.data ?? []).length === 0 ? (
-              <p className="text-sm text-muted">No contractors invited yet. Open tenders are still visible to any contractor desk.</p>
+              <p className="text-sm text-muted">
+                No contractors invited yet. Open tenders are still visible to any contractor desk.
+              </p>
             ) : (
               <ul className="space-y-2">
                 {(invites.data ?? []).map((i) => (
-                  <li key={i.contractor_user_id} className="rounded-lg border border-border bg-surface px-4 py-3 text-sm">
+                  <li
+                    key={i.contractor_user_id}
+                    className="rounded-lg border border-border bg-surface px-4 py-3 text-sm"
+                  >
                     {i.company_name} · {i.contact_name}
                   </li>
                 ))}
