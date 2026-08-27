@@ -5,6 +5,7 @@ import { Wordmark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
 import { SignedIn, SignedOut } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -49,7 +50,7 @@ function Home() {
           <div className="relative mx-auto grid max-w-6xl gap-12 px-5 pb-20 pt-10 md:grid-cols-[1.15fr_0.85fr] md:pt-16">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">
-                Procurement desk
+                {BRAND_NAME}
               </p>
               <h1 className="mt-4 max-w-xl font-display text-4xl leading-[1.08] text-fg sm:text-5xl md:text-6xl">
                 Send the sheet.
@@ -57,9 +58,8 @@ function Home() {
                 Read every return.
               </h1>
               <p className="mt-5 max-w-lg text-base text-muted sm:text-lg">
-                Northline is the laptop desk for issuing bid templates to
-                contractors, collecting filled sheets, and letting AI tell you
-                who completed the work — and who should be rejected.
+                {BRAND_TAGLINE} Issue bid templates, collect filled sheets, and
+                compare who completed the work — and who should be rejected.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button size="lg" asChild>
