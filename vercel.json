@@ -1,0 +1,1 @@
+{"buildCommand":"cd Northline-Procurement-Vercel-Neon && npm ci && npm run build && cd .. && cp -R Northline-Procurement-Vercel-Neon/.vercel/output .vercel/output"}
