@@ -184,8 +184,13 @@ function MarketplaceHome({
 
       <div className="flex flex-wrap gap-2">
         <FilterChip active={category === "all"} onClick={() => setCategory("all")} label="All" />
-        {CATEGORIES.map ex((c) => (
-          <FilterChip key={c} active={category === c} onClick={() => setCategory(c)} label={c} />
+        {CATEGORIES.map((c) => (
+          <FilterChip
+            key={c}
+            active={category === c}
+            onClick={() => setCategory(c)}
+            label={c}
+          />
         ))}
       </div>
 
@@ -236,7 +241,8 @@ function MarketplaceHome({
                 <li key={t.id}>
                   <Link
                     to="/desk/inbox/$id"
-                    params={{ id: String(t.id) }}\n                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 hover:border-border-strong"
+                    params={{ id: String(t.id) }}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 hover:border-border-strong"
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium">{t.title}</p>
