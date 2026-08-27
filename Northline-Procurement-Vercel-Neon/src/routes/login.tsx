@@ -68,12 +68,12 @@ function Login() {
           <Link to="/"><Wordmark /></Link>
           <div>
             <p className="font-display text-4xl leading-tight">
-              Procurement control from request to award.
+              Lirang e-Tender — from request to award.
             </p>
             <p className="mt-4 max-w-sm text-sm text-muted">
               {intent === "contractor"
-                ? "Use the contractor desk to complete and submit tender sheets."
-                : "Use the procurement desk to issue templates, compare returns and manage awards."}
+                ? "Complete and submit tender sheets as a contractor."
+                : "Issue templates, compare returns and manage awards as a buyer."}
             </p>
           </div>
         </div>
