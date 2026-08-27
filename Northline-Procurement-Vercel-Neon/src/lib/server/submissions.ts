@@ -3,7 +3,7 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { emptyPayload } from "@/lib/completeness";
 import { getSql } from "@/lib/db";
 import type { BidPayload } from "@/lib/types";
-import { mapSubmission, parseSchema } from "./map";
+import { mapSubmission, parsePayload, parseSchema } from "./map";
 
 async function canBid(userId: string, tenderId: number) {
   const sql = await getSql();
@@ -80,13 +80,16 @@ export const saveSubmission = createServerFn({ method: "POST" })
   .validator((input: { tenderId: number; payload: BidPayload; submit: boolean }) => input)
   .handler(async ({ context, data }) => {
     const gate = await canBid(context.userId, data.tenderId);
-    if (!gate.allowed) throw new Error("You cannot bid on this tender.");
-    const status = data.submit ? "submitted" : "draft";
+    if (!gate.allowed) throw new Error("This tender is not open to you.");
     const payloadJson = JSON.stringify(data.payload);
-    const existing = await gate.sql<{ id: number }>`
-      select id from submissions
+    const status = data.submit ? "submitted" : "draft";
+    const existing = await gate.sql<{ id: number; status: string }>`
+      select id, status from submissions
       where tender_id = ${data.tenderId} and contractor_user_id = ${context.userId}
     `;
+    if (existing[0] && existing[0].status !== "draft") {
+      throw new Error("This sheet is already submitted.");
+    }
     if (existing[0]) {
       await gate.sql`
         update submissions
@@ -132,8 +135,12 @@ export const listOwnerSubmissions = createServerFn({ method: "GET" })
       contact_name: string;
       phone: string;
       email: string;
+      address: string;
+      logo_url: string;
       status: string;
       submitted_at: unknown;
+      payload_json: string;
+      schema_json: string;
     }>`
       select
         s.id,
@@ -144,8 +151,12 @@ export const listOwnerSubmissions = createServerFn({ method: "GET" })
         coalesce(p.contact_name, '') as contact_name,
         coalesce(p.phone, '') as phone,
         coalesce(p.email, '') as email,
+        coalesce(p.address, '') as address,
+        coalesce(p.logo_url, '') as logo_url,
         s.status,
-        s.submitted_at
+        s.submitted_at,
+        s.payload_json,
+        t.schema_json
       from submissions s
       join tenders t on t.id = s.tender_id
       left join profiles p on p.user_id = s.contractor_user_id
@@ -163,7 +174,43 @@ export const listOwnerSubmissions = createServerFn({ method: "GET" })
       contactName: r.contact_name,
       phone: r.phone,
       email: r.email,
+      address: r.address,
+      logoUrl: r.logo_url,
       status: r.status,
       submittedAt: r.submitted_at ? String(r.submitted_at) : null,
+      payload: parsePayload(r.payload_json),
+      schema: parseSchema(r.schema_json),
     }));
+  });
+
+/** Procurement: update a submission payload on a tender they own (edit after submit). */
+export const updateOwnerSubmission = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: { submissionId: number; payload: BidPayload }) => input)
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const me = await sql<{ role: string }>`
+      select role from profiles where user_id = ${context.userId}
+    `;
+    if (me[0]?.role !== "procurement") {
+      throw new Error("Procurement desk only.");
+    }
+    const owned = await sql<{ id: number; status: string }>`
+      select s.id, s.status
+      from submissions s
+      join tenders t on t.id = s.tender_id
+      where s.id = ${data.submissionId}
+        and t.owner_id = ${context.userId}
+    `;
+    if (!owned[0]) throw new Error("Submission not found.");
+    if (owned[0].status === "awarded") {
+      throw new Error("Cannot edit an awarded submission.");
+    }
+    const payloadJson = JSON.stringify(data.payload);
+    await sql`
+      update submissions
+      set payload_json = ${payloadJson}, updated_at = now()
+      where id = ${data.submissionId}
+    `;
+    return { ok: true as const };
   });
