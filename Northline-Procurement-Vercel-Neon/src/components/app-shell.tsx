@@ -12,6 +12,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { BRAND_SHORT } from "@/lib/brand";
 import type { Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -35,9 +36,9 @@ export function AppShell({ profile }: { profile: Profile }) {
         <div className="flex items-center gap-2 px-5 py-5">
           <Mark className="size-7 text-accent" />
           <div>
-            <p className="font-display text-lg leading-none">Northline</p>
+            <p className="font-display text-lg leading-none">{BRAND_SHORT}</p>
             <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-subtle">
-              {profile.role === "procurement" ? "Procurement" : "Contractor"}
+              e-Tender · {profile.role === "procurement" ? "Buyer" : "Contractor"}
             </p>
           </div>
         </div>
@@ -76,7 +77,7 @@ export function AppShell({ profile }: { profile: Profile }) {
         <SheetContent side="left" className="bg-surface">
           <div className="mb-6 flex items-center gap-2 pt-1">
             <Mark className="size-7 text-accent" />
-            <span className="font-display text-lg">Northline</span>
+            <span className="font-display text-lg">{BRAND_SHORT}</span>
           </div>
           <NavList items={items} onNavigate={() => setOpen(false)} />
         </SheetContent>
