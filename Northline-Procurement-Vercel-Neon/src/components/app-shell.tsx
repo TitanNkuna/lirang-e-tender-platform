@@ -27,11 +27,11 @@ export function AppShell({ profile }: { profile: Profile }) {
           { to: "/desk/tenders", label: "Tenders", icon: Inbox },
           { to: "/desk/templates", label: "Templates", icon: FileSpreadsheet },
           { to: "/desk/contractors", label: "Contractors", icon: Building2 },
-          { to: "/desk/settings", label: "Settings", icon: Settings },
+          { to: "/desk/settings", label: "Company profile", icon: Settings },
         ]
       : [
-          { to: "/desk", label: "Inbox", icon: Inbox },
-          { to: "/desk/settings", label: "Settings", icon: Settings },
+          { to: "/desk", label: "Marketplace", icon: Inbox },
+          { to: "/desk/settings", label: "Company profile", icon: Settings },
         ];
 
   return (
