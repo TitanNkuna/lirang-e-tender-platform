@@ -53,7 +53,7 @@ function DeskHome() {
     <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-subtle">Procurement desk</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-subtle">Lirang e-Tender</p>
           <h1 className="mt-1 font-display text-3xl md:text-4xl">Overview</h1>
         </div>
         <div className="flex flex-wrap gap-2">
