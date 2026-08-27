@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { rankBid, summarizeBid } from "@/lib/completeness";
 import { listContractors } from "@/lib/server/profile";
 import { listOwnerSubmissions } from "@/lib/server/submissions";
 import { submissionBadge, submissionLabel } from "@/lib/status";
-import { formatDate, initials } from "@/lib/utils";
+import { formatDate, formatZar, initials } from "@/lib/utils";
 
 export const Route = createFileRoute("/desk/contractors")({
   component: ContractorsPage,
@@ -136,32 +137,55 @@ function ContractorsPage() {
                 </div>
 
                 <ul className="mt-4 space-y-2 border-t border-border pt-3">
-                  {co.rows.map((s) => (
-                    <li
-                      key={s.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-raised/40 px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{s.tenderTitle}</p>
-                        <p className="text-xs text-muted">
-                          {s.submittedAt ? formatDate(s.submittedAt) : "—"}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant={submissionBadge(s.status as "submitted", true)}>
-                          {submissionLabel(s.status as "submitted")}
-                        </Badge>
-                        <Button type="button" size="sm" onClick={() => setOpen(s)}>
-                          View full form
-                        </Button>
-                        <Button type="button" size="sm" variant="secondary" asChild>
-                          <Link to="/desk/tenders/$id" params={{ id: String(s.tenderId) }}>
-                            Open tender
-                          </Link>
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
+                  {co.rows.map((s) => {
+                    const peers = co.rows
+                      .filter((r) => r.tenderId === s.tenderId)
+                      .map((r) => r.payload);
+                    const summary = summarizeBid(s.schema, s.payload);
+                    const rank = rankBid(s.schema, s.payload, peers.length ? peers : [s.payload]);
+                    return (
+                      <li key={s.id} className="rounded-lg bg-raised/40 px-3 py-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{s.tenderTitle}</p>
+                            <p className="text-xs text-muted">
+                              {s.submittedAt ? formatDate(s.submittedAt) : "—"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={submissionBadge(s.status as "submitted", true)}>
+                              {submissionLabel(s.status as "submitted")}
+                            </Badge>
+                            <Button type="button" size="sm" onClick={() => setOpen(s)}>
+                              View full form
+                            </Button>
+                            <Button type="button" size="sm" variant="secondary" asChild>
+                              <Link to="/desk/tenders/$id" params={{ id: String(s.tenderId) }}>
+                                Open tender
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full bg-surface px-2.5 py-1 font-medium tabular-nums text-fg">
+                            Total {formatZar(summary.priceTotal)}
+                          </span>
+                          <span className="rounded-full bg-surface px-2.5 py-1 tabular-nums">
+                            Overall {rank.overall}
+                          </span>
+                          <span className="rounded-full bg-surface px-2.5 py-1 tabular-nums">
+                            Quality {rank.qualityScore}
+                          </span>
+                          <span className="rounded-full bg-surface px-2.5 py-1 tabular-nums">
+                            Price {rank.priceScore}
+                          </span>
+                          <span className="rounded-full bg-surface px-2.5 py-1 tabular-nums">
+                            Invoice→pay {rank.paymentScore}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </li>
             ))}
