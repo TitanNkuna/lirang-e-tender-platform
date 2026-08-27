@@ -33,6 +33,32 @@ export const Route = createFileRoute("/desk/tenders/$id")({
   component: TenderDetail,
 });
 
+function ScoreChips({
+  priceTotal,
+  overall,
+  quality,
+  price,
+  payment,
+}: {
+  priceTotal: number | null;
+  overall: number;
+  quality: number;
+  price: number;
+  payment: number;
+}) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+      <span className="rounded-full bg-raised px-2.5 py-1 font-medium tabular-nums text-fg">
+        Total {formatZar(priceTotal)}
+      </span>
+      <span className="rounded-full bg-raised px-2.5 py-1 tabular-nums">Overall {overall}</span>
+      <span className="rounded-full bg-raised px-2.5 py-1 tabular-nums">Quality {quality}</span>
+      <span className="rounded-full bg-raised px-2.5 py-1 tabular-nums">Price {price}</span>
+      <span className="rounded-full bg-raised px-2.5 py-1 tabular-nums">Invoice→pay {payment}</span>
+    </div>
+  );
+}
+
 function TenderDetail() {
   const { id } = Route.useParams();
   const tenderId = Number(id);
@@ -234,8 +260,7 @@ function TenderDetail() {
           ) : rows.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted">
-                No submissions yet. Companies that return a sheet appear here with cost and a short
-                summary.
+                No submissions yet. Companies that return a sheet appear here with cost and scores.
               </CardContent>
             </Card>
           ) : (
@@ -267,18 +292,10 @@ function TenderDetail() {
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3 text-sm">
-                      <span className="rounded-full bg-raised px-3 py-1 tabular-nums">
-                        {formatZar(suggested.summary.priceTotal)}
+                      <span className="rounded-full bg-raised px-3 py-1 tabular-nums font-medium">
+                        Total {formatZar(suggested.summary.priceTotal)}
                       </span>
                       <span className="rounded-full bg-raised px-3 py-1">{suggested.summary.paymentTerms}</span>
-                      <span className="rounded-full bg-raised px-3 py-1">
-                        Quality fit {suggested.summary.qualityFit}% — {suggested.summary.qualityFitLabel}
-                      </span>
-                      {suggested.summary.leadDaysAvg != null && (
-                        <span className="rounded-full bg-raised px-3 py-1">
-                          Lead ~{suggested.summary.leadDaysAvg} days
-                        </span>
-                      )}
                       <Button size="sm" className="ml-auto" onClick={() => openSubmission(suggested.sub, false)}>
                         View full form
                       </Button>
@@ -294,27 +311,10 @@ function TenderDetail() {
                 )}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-border bg-surface p-4">
-                  <p className="text-xs uppercase tracking-[0.14em] text-subtle">Submissions</p>
-                  <p className="mt-2 font-display text-3xl tabular-nums">{rows.length}</p>
-                </div>
-                <div className="rounded-xl border border-border bg-surface p-4">
-                  <p className="text-xs uppercase tracking-[0.14em] text-subtle">Complete sheets</p>
-                  <p className="mt-2 font-display text-3xl tabular-nums">{scored.filter((x) => x.score.complete).length}</p>
-                </div>
-                <div className="rounded-xl border border-border bg-surface p-4">
-                  <p className="text-xs uppercase tracking-[0.14em] text-subtle">Lowest price</p>
-                  <p className="mt-2 font-display text-lg">
-                    {lowestPrice ? `${lowestPrice.sub.companyName} · ${formatZar(lowestPrice.summary.priceTotal)}` : "—"}
-                  </p>
-                </div>
-              </div>
-
               <div>
                 <h2 className="mb-3 font-display text-xl">Companies that submitted</h2>
                 <p className="mb-3 text-sm text-muted">
-                  Summary and cost below. Use <strong>View full form</strong> or <strong>Edit form</strong>.
+                  Total cost and rating scores for each company.
                 </p>
                 <ul className="space-y-3">
                   {scored
@@ -340,45 +340,20 @@ function TenderDetail() {
                                 {summary.complete ? "Form complete" : `${score.missing.length} fields missing`}
                                 {" · "}
                                 {summary.paymentTerms}
-                                {summary.paymentDays != null ? ` (~${summary.paymentDays}d invoice→pay)` : ""}
-                                {" · score "}
-                                {rank.overall}
                               </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-display text-lg tabular-nums">{formatZar(summary.priceTotal)}</span>
+                              <span className="font-display text-xl tabular-nums">{formatZar(summary.priceTotal)}</span>
                               <Badge variant={submissionBadge(s.status, score.complete)}>{submissionLabel(s.status)}</Badge>
                             </div>
                           </div>
-                          <dl className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-3">
-                            <div>
-                              <dt className="text-subtle">Total cost</dt>
-                              <dd className="mt-0.5 font-medium text-fg tabular-nums">{formatZar(summary.priceTotal)}</dd>
-                            </div>
-                            <div>
-                              <dt className="text-subtle">Payment (invoice → pay)</dt>
-                              <dd className="mt-0.5 text-fg">
-                                {summary.paymentTerms}
-                                {summary.paymentDays != null ? ` · ~${summary.paymentDays}d` : ""}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt className="text-subtle">Quality vs your requirements</dt>
-                              <dd className="mt-0.5 text-fg">{summary.qualityFit}% · {summary.qualityFitLabel}</dd>
-                            </div>
-                          </dl>
-                          {summary.filledSummary.length > 0 && (
-                            <ul className="mt-2 space-y-0.5 text-xs text-muted">
-                              {summary.filledSummary.slice(0, 3).map((line) => (
-                                <li key={line} className="line-clamp-1">· {line}</li>
-                              ))}
-                            </ul>
-                          )}
-                          {summary.qualityGaps.length > 0 && (
-                            <p className="mt-1 line-clamp-2 text-xs text-danger">
-                              Gaps: {summary.qualityGaps.slice(0, 2).join("; ")}
-                            </p>
-                          )}
+                          <ScoreChips
+                            priceTotal={summary.priceTotal}
+                            overall={rank.overall}
+                            quality={rank.qualityScore}
+                            price={rank.priceScore}
+                            payment={rank.paymentScore}
+                          />
                           <div className="mt-4 flex flex-wrap gap-2">
                             <Button type="button" size="sm" onClick={() => openSubmission(s, false)}>
                               View full form
@@ -408,38 +383,45 @@ function TenderDetail() {
             <Skeleton className="h-40" />
           ) : rows.length === 0 ? (
             <Card>
-              <CardContent className="py-10 text-center text-sm text-muted">
-                No sheets submitted yet.
-              </CardContent>
+              <CardContent className="py-10 text-center text-sm text-muted">No sheets submitted yet.</CardContent>
             </Card>
           ) : (
-            <ul className="space-y-2">
-              {rows.map((s) => {
-                const score = scoreSubmission(t.schema, s.payload);
-                return (
-                  <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">
-                        {s.companyName}
-                        {s.isSample ? " · sample" : ""}
-                      </p>
-                      <p className="text-xs text-muted">
-                        {score.complete ? "Complete" : `${score.missing.length} missing`} · {formatZar(score.priceTotal)}
-                      </p>
+            <ul className="space-y-3">
+              {scored
+                .slice()
+                .sort((a, b) => b.rank.overall - a.rank.overall)
+                .map(({ sub: s, score, summary, rank }) => (
+                  <li key={s.id} className="rounded-xl border border-border bg-surface px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">
+                          {s.companyName}
+                          {s.isSample ? " · sample" : ""}
+                        </p>
+                        <p className="text-xs text-muted">
+                          {score.complete ? "Complete" : `${score.missing.length} missing`}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-display text-lg tabular-nums">{formatZar(summary.priceTotal)}</span>
+                        <Badge variant={submissionBadge(s.status, score.complete)}>{submissionLabel(s.status)}</Badge>
+                        <Button type="button" size="sm" onClick={() => openSubmission(s, false)}>View full form</Button>
+                        {s.status !== "awarded" && t.status !== "awarded" && (
+                          <Button type="button" size="sm" variant="secondary" onClick={() => openSubmission(s, true)}>
+                            Edit form
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs tabular-nums text-muted">{score.score}%</span>
-                      <Badge variant={submissionBadge(s.status, score.complete)}>{submissionLabel(s.status)}</Badge>
-                      <Button type="button" size="sm" onClick={() => openSubmission(s, false)}>View full form</Button>
-                      {s.status !== "awarded" && t.status !== "awarded" && (
-                        <Button type="button" size="sm" variant="secondary" onClick={() => openSubmission(s, true)}>
-                          Edit form
-                        </Button>
-                      )}
-                    </div>
+                    <ScoreChips
+                      priceTotal={summary.priceTotal}
+                      overall={rank.overall}
+                      quality={rank.qualityScore}
+                      price={rank.priceScore}
+                      payment={rank.paymentScore}
+                    />
                   </li>
-                );
-              })}
+                ))}
             </ul>
           )}
         </TabsContent>
@@ -524,11 +506,6 @@ function TenderDetail() {
                   {openBid.companyName} — {editMode ? "edit form" : "full form"}
                 </DialogTitle>
               </DialogHeader>
-              <p className="mb-4 text-sm text-muted">
-                {editMode
-                  ? "Change any field, then save. Awarded sheets cannot be edited."
-                  : "Everything this contractor filled in for this tender."}
-              </p>
               <BidSheet
                 schema={t.schema}
                 payload={editMode && editPayload ? editPayload : openBid.payload}
@@ -541,37 +518,21 @@ function TenderDetail() {
                     <Button onClick={() => saveEdit.mutate()} disabled={saveEdit.isPending || !editPayload}>
                       {saveEdit.isPending ? "Saving…" : "Save changes"}
                     </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        setEditMode(false);
-                        setEditPayload(null);
-                      }}
-                    >
+                    <Button variant="secondary" onClick={() => { setEditMode(false); setEditPayload(null); }}>
                       Cancel edit
                     </Button>
                   </>
                 ) : (
                   <>
                     {openBid.status !== "awarded" && t.status !== "awarded" && (
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          setEditMode(true);
-                          setEditPayload(structuredClone(openBid.payload));
-                        }}
-                      >
+                      <Button variant="secondary" onClick={() => { setEditMode(true); setEditPayload(structuredClone(openBid.payload)); }}>
                         Edit form
                       </Button>
                     )}
                     {openBid.status === "submitted" && t.status !== "awarded" && (
                       <>
-                        <Button onClick={() => award.mutate(openBid.id)} disabled={award.isPending}>
-                          Award
-                        </Button>
-                        <Button variant="danger" onClick={() => reject.mutate(openBid.id)} disabled={reject.isPending}>
-                          Reject
-                        </Button>
+                        <Button onClick={() => award.mutate(openBid.id)} disabled={award.isPending}>Award</Button>
+                        <Button variant="danger" onClick={() => reject.mutate(openBid.id)} disabled={reject.isPending}>Reject</Button>
                       </>
                     )}
                   </>
