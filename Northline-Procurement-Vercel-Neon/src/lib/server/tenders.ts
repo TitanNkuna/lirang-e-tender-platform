@@ -19,7 +19,8 @@ const TENDER_SELECT = `
   t.id, t.owner_id, t.template_id, t.title, t.description, t.category,
   t.due_at, t.visibility, t.status, t.schema_json, t.awarded_submission_id, t.created_at,
   (select count(*) from submissions s where s.tender_id = t.id and s.status <> 'draft') as submission_count,
-  (select count(*) from tender_invites i where i.tender_id = t.id) as invite_count
+  (select count(*) from tender_invites i where i.tender_id = t.id) as invite_count,
+  p.company_name as owner_company_name
 `;
 
 export const listMyTenders = createServerFn({ method: "GET" })
@@ -29,7 +30,9 @@ export const listMyTenders = createServerFn({ method: "GET" })
     if (!profile) return [];
     if (profile.role === "procurement") {
       const rows = await sql.query<Parameters<typeof mapTender>[0]>(
-        `select ${TENDER_SELECT} from tenders t where t.owner_id = $1 order by t.created_at desc`,
+        `select ${TENDER_SELECT} from tenders t
+         left join profiles p on p.user_id = t.owner_id
+         where t.owner_id = $1 order by t.created_at desc`,
         [context.userId],
       );
       return rows.map(mapTender);
@@ -37,6 +40,7 @@ export const listMyTenders = createServerFn({ method: "GET" })
     const rows = await sql.query<Parameters<typeof mapTender>[0]>(
       `select ${TENDER_SELECT}
        from tenders t
+       left join profiles p on p.user_id = t.owner_id
        where t.status in ('open', 'closed', 'awarded')
          and (
            t.visibility = 'open'
@@ -58,7 +62,9 @@ export const getTender = createServerFn({ method: "GET" })
     const { sql, profile } = await profileOf(context.userId);
     if (!profile) return null;
     const rows = await sql.query<Parameters<typeof mapTender>[0]>(
-      `select ${TENDER_SELECT} from tenders t where t.id = $1`,
+      `select ${TENDER_SELECT} from tenders t
+       left join profiles p on p.user_id = t.owner_id
+       where t.id = $1`,
       [id],
     );
     const tender = rows[0] ? mapTender(rows[0]) : null;
@@ -299,4 +305,19 @@ export const listSubmissionsForTender = createServerFn({ method: "GET" })
       order by submitted_at desc nulls last, id
     `;
     return rows.map(mapSubmission);
+  });
+
+export const deleteTender = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((tenderId: number) => tenderId)
+  .handler(async ({ context, data: tenderId }) => {
+    const { sql, profile } = await profileOf(context.userId);
+    if (profile?.role !== "procurement") throw new Error("Procurement desk only.");
+    const deleted = await sql<{ id: number }>`
+      delete from tenders
+      where id = ${tenderId} and owner_id = ${context.userId}
+      returning id
+    `;
+    if (!deleted[0]) throw new Error("Tender not found.");
+    return { ok: true as const };
   });
