@@ -8,10 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getMyProfile } from "@/lib/server/profile";
 import { listOwnerSubmissions } from "@/lib/server/submissions";
-import { listMyTenders, loadSampleTender } from "@/lib/server/tenders";
+import { listMyTenders, listSuggestedWinners, loadSampleTender } from "@/lib/server/tenders";
 import { submissionBadge, submissionLabel, tenderBadge, tenderLabel } from "@/lib/status";
 import { CATEGORIES } from "@/lib/types";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatZar } from "@/lib/utils";
 
 export const Route = createFileRoute("/desk/")({ component: DeskHome });
 
@@ -23,12 +23,18 @@ function DeskHome() {
     queryFn: () => listOwnerSubmissions(),
     enabled: profile.data?.role === "procurement",
   });
+  const winners = useQuery({
+    queryKey: ["suggested-winners"],
+    queryFn: () => listSuggestedWinners(),
+    enabled: profile.data?.role === "procurement",
+  });
   const navigate = useNavigate();
   const qc = useQueryClient();
   const sample = useMutation({
     mutationFn: () => loadSampleTender(),
     onSuccess: async (res) => {
       await qc.invalidateQueries({ queryKey: ["tenders"] });
+      await qc.invalidateQueries({ queryKey: ["suggested-winners"] });
       await navigate({ to: "/desk/tenders/$id", params: { id: String(res.id) } });
     },
   });
@@ -69,6 +75,57 @@ function DeskHome() {
         <Stat label="Sheets in" value={awaiting} />
         <Stat label="Awarded" value={awarded} />
       </div>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-display text-xl">Suggested winning bids</h2>
+          <Link to="/desk/tenders" className="text-sm text-muted hover:text-fg">
+            All tenders
+          </Link>
+        </div>
+        {winners.isPending ? (
+          <Skeleton className="h-36" />
+        ) : (winners.data ?? []).length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted">
+              When contractors submit, a suggested winner appears here with price, quality fit, and
+              payment terms. Open a tender for the full comparison.
+            </CardContent>
+          </Card>
+        ) : (
+          <ul className="grid gap-3 md:grid-cols-2">
+            {(winners.data ?? []).slice(0, 6).map((row) => (
+              <li key={row.tenderId}>
+                <Link
+                  to="/desk/tenders/$id"
+                  params={{ id: String(row.tenderId) }}
+                  className="block rounded-xl border border-ok/40 bg-surface p-4 hover:border-ok"
+                >
+                  <p className="text-xs uppercase tracking-[0.12em] text-subtle">
+                    {row.tenderTitle}
+                  </p>
+                  <p className="mt-1 font-display text-xl">{row.winner.companyName}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted">{row.winner.reason}</p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full bg-raised px-2.5 py-1 tabular-nums">
+                      Score {row.winner.overall}
+                    </span>
+                    <span className="rounded-full bg-raised px-2.5 py-1 tabular-nums">
+                      {formatZar(row.winner.summary.priceTotal)}
+                    </span>
+                    <span className="rounded-full bg-raised px-2.5 py-1">
+                      Quality {row.winner.summary.qualityFit}%
+                    </span>
+                    <Badge variant={tenderBadge(row.tenderStatus as "open")}>
+                      {tenderLabel(row.tenderStatus as "open")}
+                    </Badge>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section>
         <div className="mb-3 flex items-center justify-between">
@@ -143,7 +200,7 @@ function DeskHome() {
                   <div className="min-w-0">
                     <p className="truncate font-medium">{t.title}</p>
                     <p className="text-xs text-muted">
-                      {t.submissionCount} submitted · due {formatDate(t.dueAt)}
+                      {t.submissionCount} companies submitted · due {formatDate(t.dueAt)}
                     </p>
                   </div>
                   <Badge variant={tenderBadge(t.status)}>{tenderLabel(t.status)}</Badge>
