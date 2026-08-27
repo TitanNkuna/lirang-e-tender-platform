@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment variables — NEVER commit real secrets
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+.vercel/
+.output/
+.nitro/
+
+# Logs
+npm-debug.log*
+*.log
+
+# Editor/OS
+.DS_Store
+.vscode/
+.idea/
+
+# Test artifacts
+playwright-report/
+test-results/
