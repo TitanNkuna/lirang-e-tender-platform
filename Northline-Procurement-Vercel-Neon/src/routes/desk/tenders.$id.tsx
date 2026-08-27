@@ -69,6 +69,7 @@ function TenderDetail() {
       qc.invalidateQueries({ queryKey: ["invites", tenderId] }),
       qc.invalidateQueries({ queryKey: ["tenders"] }),
       qc.invalidateQueries({ queryKey: ["owner-submissions"] }),
+      qc.invalidateQueries({ queryKey: ["suggested-winners"] }),
     ]);
   };
 
@@ -255,13 +256,21 @@ function TenderDetail() {
                       <span className="rounded-full bg-raised px-3 py-1">
                         {suggested.summary.paymentTerms}
                       </span>
+                      <span className="rounded-full bg-raised px-3 py-1">
+                        Quality fit {suggested.summary.qualityFit}% —{" "}
+                        {suggested.summary.qualityFitLabel}
+                      </span>
                       {suggested.summary.leadDaysAvg != null && (
                         <span className="rounded-full bg-raised px-3 py-1">
                           Lead ~{suggested.summary.leadDaysAvg} days
                         </span>
                       )}
-                      <Button size="sm" className="ml-auto" onClick={() => setOpenBid(suggested.sub)}>
-                        View sheet
+                      <Button
+                        size="sm"
+                        className="ml-auto"
+                        onClick={() => setOpenBid(suggested.sub)}
+                      >
+                        View full form
                       </Button>
                       {suggested.sub.status === "submitted" && t.status !== "awarded" && (
                         <Button
@@ -304,7 +313,8 @@ function TenderDetail() {
               <div>
                 <h2 className="mb-3 font-display text-xl">Companies that submitted</h2>
                 <p className="mb-3 text-sm text-muted">
-                  Short form summary, total cost, and scores. Click a row to open the full sheet.
+                  Summary and cost below. Use <strong>View full form</strong> to see every field
+                  they filled in.
                 </p>
                 <ul className="space-y-3">
                   {scored
@@ -313,85 +323,94 @@ function TenderDetail() {
                     .map(({ sub: s, score, summary, rank }) => {
                       const isSuggested = suggested?.sub.id === s.id;
                       return (
-                        <li key={s.id}>
-                          <button
-                            type="button"
-                            onClick={() => setOpenBid(s)}
-                            className={`w-full rounded-xl border px-4 py-4 text-left hover:border-border-strong ${
-                              isSuggested ? "border-ok bg-surface" : "border-border bg-surface"
-                            }`}
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="font-medium">
-                                  {s.companyName}
-                                  {isSuggested ? " · suggested" : ""}
-                                  {s.isSample ? " · sample" : ""}
-                                </p>
-                                <p className="mt-1 text-sm text-muted">
-                                  {summary.complete
-                                    ? "Form complete"
-                                    : `${score.missing.length} fields missing`}
-                                  {" · "}
-                                  {summary.paymentTerms}
-                                  {summary.paymentDays != null
-                                    ? ` (~${summary.paymentDays}d invoice→pay)`
-                                    : ""}
-                                  {" · score "}
-                                  {rank.overall}
-                                </p>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-display text-lg tabular-nums">
-                                  {formatZar(summary.priceTotal)}
-                                </span>
-                                <Badge variant={submissionBadge(s.status, score.complete)}>
-                                  {submissionLabel(s.status)}
-                                </Badge>
-                                {s.status === "submitted" && t.status !== "awarded" && (
-                                  <Button
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      award.mutate(s.id);
-                                    }}
-                                    disabled={award.isPending}
-                                  >
-                                    Choose
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                            <dl className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-3">
-                              <div>
-                                <dt className="text-subtle">Payment (invoice → pay)</dt>
-                                <dd className="mt-0.5 text-fg">
-                                  {summary.paymentTerms}
-                                  {summary.paymentDays != null
-                                    ? ` · ~${summary.paymentDays}d`
-                                    : ""}
-                                </dd>
-                              </div>
-                              <div>
-                                <dt className="text-subtle">Quality / warranty</dt>
-                                <dd className="mt-0.5 line-clamp-2 text-fg">
-                                  {summary.qualityNotes || summary.warranty}
-                                </dd>
-                              </div>
-                              <div>
-                                <dt className="text-subtle">Scores</dt>
-                                <dd className="mt-0.5 text-fg">
-                                  Quality {rank.qualityScore} · Price {rank.priceScore} · Payment{" "}
-                                  {rank.paymentScore}
-                                </dd>
-                              </div>
-                            </dl>
-                            {summary.highlights.length > 0 && (
-                              <p className="mt-2 line-clamp-2 text-xs text-muted">
-                                {summary.highlights.join(" · ")}
+                        <li
+                          key={s.id}
+                          className={`rounded-xl border px-4 py-4 ${
+                            isSuggested ? "border-ok bg-surface" : "border-border bg-surface"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-medium">
+                                {s.companyName}
+                                {isSuggested ? " · suggested" : ""}
+                                {s.isSample ? " · sample" : ""}
                               </p>
+                              <p className="mt-1 text-sm text-muted">
+                                {summary.complete
+                                  ? "Form complete"
+                                  : `${score.missing.length} fields missing`}
+                                {" · "}
+                                {summary.paymentTerms}
+                                {summary.paymentDays != null
+                                  ? ` (~${summary.paymentDays}d invoice→pay)`
+                                  : ""}
+                                {" · score "}
+                                {rank.overall}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-display text-lg tabular-nums">
+                                {formatZar(summary.priceTotal)}
+                              </span>
+                              <Badge variant={submissionBadge(s.status, score.complete)}>
+                                {submissionLabel(s.status)}
+                              </Badge>
+                            </div>
+                          </div>
+                          <dl className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-3">
+                            <div>
+                              <dt className="text-subtle">Total cost</dt>
+                              <dd className="mt-0.5 font-medium text-fg tabular-nums">
+                                {formatZar(summary.priceTotal)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-subtle">Payment (invoice → pay)</dt>
+                              <dd className="mt-0.5 text-fg">
+                                {summary.paymentTerms}
+                                {summary.paymentDays != null
+                                  ? ` · ~${summary.paymentDays}d`
+                                  : ""}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-subtle">Quality vs your requirements</dt>
+                              <dd className="mt-0.5 text-fg">
+                                {summary.qualityFit}% · {summary.qualityFitLabel}
+                              </dd>
+                            </div>
+                          </dl>
+                          {summary.filledSummary.length > 0 && (
+                            <ul className="mt-2 space-y-0.5 text-xs text-muted">
+                              {summary.filledSummary.slice(0, 3).map((line) => (
+                                <li key={line} className="line-clamp-1">
+                                  · {line}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {summary.qualityGaps.length > 0 && (
+                            <p className="mt-1 line-clamp-2 text-xs text-danger">
+                              Gaps: {summary.qualityGaps.slice(0, 2).join("; ")}
+                            </p>
+                          )}
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <Button type="button" size="sm" onClick={() => setOpenBid(s)}>
+                              View full form
+                            </Button>
+                            {s.status === "submitted" && t.status !== "awarded" && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => award.mutate(s.id)}
+                                disabled={award.isPending}
+                              >
+                                Choose
+                              </Button>
                             )}
-                          </button>
+                          </div>
                         </li>
                       );
                     })}
@@ -416,31 +435,31 @@ function TenderDetail() {
               {rows.map((s) => {
                 const score = scoreSubmission(t.schema, s.payload);
                 return (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenBid(s)}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-left hover:border-border-strong"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">
-                          {s.companyName}
-                          {s.isSample ? " · sample" : ""}
-                        </p>
-                        <p className="text-xs text-muted">
-                          {score.complete ? "Complete" : `${score.missing.length} missing`} ·{" "}
-                          {formatZar(score.priceTotal)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs tabular-nums text-muted">
-                          {score.score}%
-                        </span>
-                        <Badge variant={submissionBadge(s.status, score.complete)}>
-                          {submissionLabel(s.status)}
-                        </Badge>
-                      </div>
-                    </button>
+                  <li
+                    key={s.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {s.companyName}
+                        {s.isSample ? " · sample" : ""}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {score.complete ? "Complete" : `${score.missing.length} missing`} ·{" "}
+                        {formatZar(score.priceTotal)}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs tabular-nums text-muted">
+                        {score.score}%
+                      </span>
+                      <Badge variant={submissionBadge(s.status, score.complete)}>
+                        {submissionLabel(s.status)}
+                      </Badge>
+                      <Button type="button" size="sm" onClick={() => setOpenBid(s)}>
+                        View full form
+                      </Button>
+                    </div>
                   </li>
                 );
               })}
@@ -532,15 +551,18 @@ function TenderDetail() {
       </Tabs>
 
       <Dialog open={Boolean(openBid)} onOpenChange={(o) => !o && setOpenBid(null)}>
-        <DialogContent className="max-h-[86vh] w-[min(92vw,880px)] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] w-[min(96vw,960px)] max-w-[960px] overflow-y-auto">
           {openBid && (
             <>
               <DialogHeader>
-                <DialogTitle>{openBid.companyName}</DialogTitle>
+                <DialogTitle>{openBid.companyName} — full form</DialogTitle>
               </DialogHeader>
+              <p className="mb-4 text-sm text-muted">
+                Everything this contractor filled in for this tender.
+              </p>
               <BidSheet schema={t.schema} payload={openBid.payload} readOnly />
               {openBid.status === "submitted" && t.status !== "awarded" && (
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-6 flex flex-wrap gap-2 border-t border-border pt-4">
                   <Button onClick={() => award.mutate(openBid.id)} disabled={award.isPending}>
                     Award
                   </Button>
