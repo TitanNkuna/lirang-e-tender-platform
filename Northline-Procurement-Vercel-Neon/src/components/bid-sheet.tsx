@@ -32,76 +32,103 @@ export function BidSheet({
     onChange({ ...payload, lineItems });
   }
 
+  const hasAnyField = contractorFields.some(
+    (f) => payload.fields[f.id] != null && String(payload.fields[f.id]).trim() !== "",
+  );
+  const hasAnyLine = schema.lineItems.some((_, i) =>
+    contractorCols.some((c) => {
+      const v = (payload.lineItems[i] ?? {})[c.id];
+      return v != null && String(v).trim() !== "";
+    }),
+  );
+
   return (
     <div className="space-y-8">
+      {readOnly && (
+        <p className="text-sm text-muted">
+          Full form as submitted by the contractor
+          {!hasAnyField && !hasAnyLine ? " — no answers recorded yet." : "."}
+        </p>
+      )}
+
       {contractorFields.length > 0 && (
-        <section className="grid gap-4 sm:grid-cols-2">
-          {contractorFields.map((field) => (
-            <FieldControl
-              key={field.id}
-              field={field}
-              value={payload.fields[field.id] ?? ""}
-              readOnly={readOnly}
-              onChange={(v) => setField(field.id, v)}
-            />
-          ))}
+        <section>
+          <h3 className="mb-3 text-xs uppercase tracking-[0.14em] text-subtle">Fields</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {contractorFields.map((field) => (
+              <FieldControl
+                key={field.id}
+                field={field}
+                value={payload.fields[field.id] ?? ""}
+                readOnly={readOnly}
+                onChange={(v) => setField(field.id, v)}
+              />
+            ))}
+          </div>
         </section>
       )}
 
-      <div className="-mx-4 overflow-x-auto md:mx-0">
-        <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-          <thead>
-            <tr className="border-b border-border text-xs uppercase tracking-[0.12em] text-subtle">
-              <th className="px-3 py-2 font-medium">#</th>
-              {issuerCols.map((c) => (
-                <th key={c.id} className="px-3 py-2 font-medium">
-                  {c.label}
-                </th>
-              ))}
-              {contractorCols.map((c) => (
-                <th key={c.id} className="px-3 py-2 font-medium">
-                  {c.label}
-                  {c.required ? " *" : ""}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {schema.lineItems.map((issuerRow, index) => (
-              <tr key={index} className="border-b border-border align-top">
-                <td className="px-3 py-2 tabular-nums text-subtle">{index + 1}</td>
+      <div>
+        <h3 className="mb-3 text-xs uppercase tracking-[0.14em] text-subtle">Line items</h3>
+        <div className="-mx-1 overflow-x-auto">
+          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-border text-xs uppercase tracking-[0.12em] text-subtle">
+                <th className="px-3 py-2 font-medium">#</th>
                 {issuerCols.map((c) => (
-                  <td key={c.id} className="px-3 py-2 text-fg">
-                    {formatCell(issuerRow, c.id, c.type)}
-                  </td>
+                  <th key={c.id} className="px-3 py-2 font-medium">
+                    {c.label}
+                  </th>
                 ))}
                 {contractorCols.map((c) => (
-                  <td key={c.id} className="px-3 py-2">
-                    {readOnly ? (
-                      <span className="text-fg">
-                        {formatCell(payload.lineItems[index] ?? {}, c.id, c.type)}
-                      </span>
-                    ) : (
-                      <Input
-                        className="h-10"
-                        type={c.type === "text" ? "text" : "number"}
-                        min={c.type === "number" || c.type === "currency" ? 0 : undefined}
-                        value={payload.lineItems[index]?.[c.id] ?? ""}
-                        onChange={(e) =>
-                          setCell(
-                            index,
-                            c.id,
-                            c.type === "text" ? e.target.value : e.target.value === "" ? "" : Number(e.target.value),
-                          )
-                        }
-                      />
-                    )}
-                  </td>
+                  <th key={c.id} className="px-3 py-2 font-medium">
+                    {c.label}
+                    {c.required ? " *" : ""}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {schema.lineItems.map((issuerRow, index) => (
+                <tr key={index} className="border-b border-border align-top">
+                  <td className="px-3 py-2 tabular-nums text-subtle">{index + 1}</td>
+                  {issuerCols.map((c) => (
+                    <td key={c.id} className="px-3 py-2 text-fg">
+                      {formatCell(issuerRow, c.id, c.type)}
+                    </td>
+                  ))}
+                  {contractorCols.map((c) => (
+                    <td key={c.id} className="px-3 py-2">
+                      {readOnly ? (
+                        <span className="text-fg">
+                          {formatCell(payload.lineItems[index] ?? {}, c.id, c.type)}
+                        </span>
+                      ) : (
+                        <Input
+                          className="h-10"
+                          type={c.type === "text" ? "text" : "number"}
+                          min={c.type === "number" || c.type === "currency" ? 0 : undefined}
+                          value={payload.lineItems[index]?.[c.id] ?? ""}
+                          onChange={(e) =>
+                            setCell(
+                              index,
+                              c.id,
+                              c.type === "text"
+                                ? e.target.value
+                                : e.target.value === ""
+                                  ? ""
+                                  : Number(e.target.value),
+                            )
+                          }
+                        />
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
