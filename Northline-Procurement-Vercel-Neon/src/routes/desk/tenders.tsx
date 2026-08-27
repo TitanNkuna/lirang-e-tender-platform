@@ -1,17 +1,28 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { listMyTenders } from "@/lib/server/tenders";
+import { deleteTender, listMyTenders } from "@/lib/server/tenders";
 import { tenderBadge, tenderLabel } from "@/lib/status";
 import { formatDate } from "@/lib/utils";
 
 export const Route = createFileRoute("/desk/tenders")({ component: TendersPage });
 
 function TendersPage() {
+  const qc = useQueryClient();
   const list = useQuery({ queryKey: ["tenders"], queryFn: () => listMyTenders() });
+  const remove = useMutation({
+    mutationFn: (id: number) => deleteTender({ data: id }),
+    onSuccess: async () => {
+      toast.success("Tender revoked");
+      await qc.invalidateQueries({ queryKey: ["tenders"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   return (
     <div className="space-y-6">
@@ -35,11 +46,14 @@ function TendersPage() {
       ) : (
         <ul className="space-y-2">
           {(list.data ?? []).map((t) => (
-            <li key={t.id}>
+            <li
+              key={t.id}
+              className="flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-3"
+            >
               <Link
                 to="/desk/tenders/$id"
                 params={{ id: String(t.id) }}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 hover:border-border-strong"
+                className="flex min-w-0 flex-1 items-center justify-between gap-3 hover:opacity-90"
               >
                 <div className="min-w-0">
                   <p className="truncate font-medium">{t.title}</p>
@@ -49,6 +63,22 @@ function TendersPage() {
                 </div>
                 <Badge variant={tenderBadge(t.status)}>{tenderLabel(t.status)}</Badge>
               </Link>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Revoke tender"
+                disabled={remove.isPending}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Revoke this tender? It will be removed for all contractors and submissions will be deleted.",
+                    )
+                  )
+                    remove.mutate(t.id);
+                }}
+              >
+                <Trash2 className="size-4 text-danger" />
+              </Button>
             </li>
           ))}
         </ul>
