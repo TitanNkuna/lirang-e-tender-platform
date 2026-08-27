@@ -99,7 +99,7 @@ function Onboarding() {
             minLength={2}
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
-            placeholder="e.g. Northline Projects"
+            placeholder="e.g. Lirang Projects"
           />
         </div>
         <div className="space-y-1.5">
