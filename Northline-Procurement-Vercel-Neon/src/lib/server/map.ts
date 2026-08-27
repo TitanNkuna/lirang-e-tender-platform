@@ -27,12 +27,18 @@ export function mapProfile(row: {
   role: string;
   company_name: string;
   contact_name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
 }): Profile {
   return {
     userId: row.user_id,
     role: row.role as Role,
     companyName: row.company_name,
     contactName: row.contact_name,
+    phone: row.phone ?? "",
+    email: row.email ?? "",
+    address: row.address ?? "",
   };
 }
 
@@ -73,6 +79,7 @@ export function mapTender(row: {
   created_at: unknown;
   submission_count?: number | string;
   invite_count?: number | string;
+  owner_company_name?: string | null;
 }): TenderRecord {
   return {
     id: Number(row.id),
@@ -90,6 +97,7 @@ export function mapTender(row: {
     createdAt: isoFromUnknown(row.created_at) ?? "",
     submissionCount: Number(row.submission_count ?? 0),
     inviteCount: Number(row.invite_count ?? 0),
+    ownerCompanyName: row.owner_company_name ?? undefined,
   };
 }
 
