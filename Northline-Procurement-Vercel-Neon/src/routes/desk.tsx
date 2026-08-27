@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, useRouterState } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { getMyProfile } from "@/lib/server/profile";
+import { isProfileComplete } from "@/lib/types";
 
 export const Route = createFileRoute("/desk")({
   component: DeskLayout,
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/desk")({
 
 function DeskLayout() {
   const { user, isPending } = useCurrentUserState();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const profileQuery = useQuery({
     queryKey: ["profile"],
     queryFn: () => getMyProfile(),
@@ -26,6 +28,12 @@ function DeskLayout() {
   }
   if (!user) return <RedirectToSignIn />;
   if (!profileQuery.data) return <Navigate to="/onboarding" />;
+
+  const complete = isProfileComplete(profileQuery.data);
+  const onSettings = pathname.startsWith("/desk/settings");
+  if (!complete && !onSettings) {
+    return <Navigate to="/desk/settings" />;
+  }
 
   return <AppShell profile={profileQuery.data} />;
 }

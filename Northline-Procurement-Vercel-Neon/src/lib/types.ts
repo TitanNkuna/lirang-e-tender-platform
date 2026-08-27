@@ -45,6 +45,18 @@ export type Profile = {
   address: string;
 };
 
+/** Company profile fields required for every account. */
+export function isProfileComplete(p: Profile | null | undefined): boolean {
+  if (!p) return false;
+  return (
+    p.companyName.trim().length >= 2 &&
+    p.contactName.trim().length >= 2 &&
+    p.phone.trim().length >= 7 &&
+    p.email.trim().includes("@") &&
+    p.address.trim().length >= 5
+  );
+}
+
 export type TemplateRecord = {
   id: number;
   ownerId: string;
