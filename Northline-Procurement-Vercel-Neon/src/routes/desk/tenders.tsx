@@ -30,6 +30,9 @@ function TendersPage() {
         <div>
           <p className="text-xs uppercase tracking-[0.16em] text-subtle">Issued</p>
           <h1 className="mt-1 font-display text-3xl">Tenders</h1>
+          <p className="mt-1 text-sm text-muted">
+            Open a tender to see company submissions, costs, and the suggested best deal.
+          </p>
         </div>
         <Button asChild>
           <Link to="/desk/new-tender">New tender</Link>
@@ -58,7 +61,8 @@ function TendersPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{t.title}</p>
                   <p className="text-xs text-muted">
-                    {t.category} · {t.submissionCount} submitted · due {formatDate(t.dueAt)}
+                    {t.category} · {t.submissionCount} companies submitted · due{" "}
+                    {formatDate(t.dueAt)} · open to compare
                   </p>
                 </div>
                 <Badge variant={tenderBadge(t.status)}>{tenderLabel(t.status)}</Badge>
