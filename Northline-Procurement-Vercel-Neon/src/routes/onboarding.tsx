@@ -65,8 +65,7 @@ function Onboarding() {
       <Wordmark />
       <h1 className="mt-10 font-display text-4xl">Which desk is yours?</h1>
       <p className="mt-2 text-muted">
-        Set your company profile. Procurement issues tenders; contractors bid. Both sides can
-        verify contact details.
+        Set your company profile. All fields are required for verification.
       </p>
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -93,39 +92,45 @@ function Onboarding() {
         }}
       >
         <div className="space-y-1.5">
-          <Label htmlFor="company">Company name</Label>
+          <Label htmlFor="company">Company name *</Label>
           <Input
             id="company"
             required
+            minLength={2}
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
             placeholder="e.g. Northline Projects"
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="contact">Contact name</Label>
+          <Label htmlFor="contact">Contact name *</Label>
           <Input
             id="contact"
+            required
+            minLength={2}
             value={contactName}
             onChange={(e) => setContactName(e.target.value)}
           />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="phone">Phone</Label>
+            <Label htmlFor="phone">Phone *</Label>
             <Input
               id="phone"
               type="tel"
+              required
+              minLength={7}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+27 …"
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Email *</Label>
             <Input
               id="email"
               type="email"
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.co.za"
@@ -133,9 +138,11 @@ function Onboarding() {
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="address">Address</Label>
+          <Label htmlFor="address">Address *</Label>
           <Textarea
             id="address"
+            required
+            minLength={5}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             rows={2}
