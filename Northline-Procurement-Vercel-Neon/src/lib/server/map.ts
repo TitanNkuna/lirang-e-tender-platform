@@ -30,6 +30,7 @@ export function mapProfile(row: {
   phone?: string;
   email?: string;
   address?: string;
+  logo_url?: string;
 }): Profile {
   return {
     userId: row.user_id,
@@ -39,6 +40,7 @@ export function mapProfile(row: {
     phone: row.phone ?? "",
     email: row.email ?? "",
     address: row.address ?? "",
+    logoUrl: row.logo_url ?? "",
   };
 }
 
