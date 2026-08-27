@@ -154,7 +154,7 @@ function TenderDetail() {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={tenderBadge(t.status.status)}>{tenderLabel(t.status)}</Badge>
+            <Badge variant={tenderBadge(t.status)}>{tenderLabel(t.status)}</Badge>
             <span className="text-xs text-subtle">{t.category}</span>
           </div>
           <h1 className="mt-2 font-display text-3xl">{t.title}</h1>
@@ -260,11 +260,7 @@ function TenderDetail() {
                           Lead ~{suggested.summary.leadDaysAvg} days
                         </span>
                       )}
-                      <Button
-                        size="sm"
-                        className="ml-auto"
-                        onClick={() => setOpenBid(suggested.sub)}
-                      >
+                      <Button size="sm" className="ml-auto" onClick={() => setOpenBid(suggested.sub)}>
                         View sheet
                       </Button>
                       {suggested.sub.status === "submitted" && t.status !== "awarded" && (
