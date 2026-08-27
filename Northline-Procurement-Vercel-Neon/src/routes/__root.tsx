@@ -7,9 +7,8 @@ import {
 } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { AppProviders } from "@/components/providers";
+import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import appCss from "../styles.css?url";
-
-const APP_NAME = "Northline";
 
 const fetchSessionUser = createServerFn({ method: "GET" }).handler(async () => {
   try {
@@ -17,16 +16,11 @@ const fetchSessionUser = createServerFn({ method: "GET" }).handler(async () => {
     const u = await getSessionUserSafe();
     return u ? { id: u.id, email: u.email } : null;
   } catch (err) {
-    // Every route's beforeLoad calls this, so an unhandled failure here 500s
-    // the entire site including the public homepage. Log the real cause
-    // instead of letting it surface as an unlabeled 500.
     console.error("[fetchSessionUser] failed:", err);
     if (err instanceof Error) {
       console.error("[fetchSessionUser] message:", err.message);
       console.error("[fetchSessionUser] stack:", err.stack);
     }
-    // Fail open to "signed out" rather than crashing the whole page — a
-    // session lookup failure should never take down the public site.
     return null;
   }
 });
@@ -37,11 +31,10 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: APP_NAME },
+      { title: BRAND_NAME },
       {
         name: "description",
-        content:
-          "Northline is a procurement desk: send bid templates to contractors, collect returns, and let AI score completeness, price and quality.",
+        content: BRAND_TAGLINE,
       },
       { name: "theme-color", content: "#0E0F12" },
     ],
