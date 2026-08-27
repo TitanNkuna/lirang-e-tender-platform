@@ -6,7 +6,7 @@
   "overrides": { "nf3": "0.3.17" },
   "scripts": {
     "dev": "vite dev --host 0.0.0.0 --port 8080",
-    "build": "vite build && npm run db:migrate",
+    "build": "npm run typecheck && vite build && npm run db:migrate",
     "db:migrate": "node scripts/migrate.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
