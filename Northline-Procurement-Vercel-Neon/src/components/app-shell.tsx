@@ -6,13 +6,12 @@ import {
   LayoutDashboard,
   Menu,
   Plus,
-  Settings,
 } from "lucide-react";
 import { useState } from "react";
+import { AccountMenu } from "@/components/account-menu";
 import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { UserButton } from "@/lib/auth/gates";
 import type { Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -27,12 +26,8 @@ export function AppShell({ profile }: { profile: Profile }) {
           { to: "/desk/tenders", label: "Tenders", icon: Inbox },
           { to: "/desk/templates", label: "Templates", icon: FileSpreadsheet },
           { to: "/desk/contractors", label: "Contractors", icon: Building2 },
-          { to: "/desk/settings", label: "Company profile", icon: Settings },
         ]
-      : [
-          { to: "/desk", label: "Marketplace", icon: Inbox },
-          { to: "/desk/settings", label: "Company profile", icon: Settings },
-        ];
+      : [{ to: "/desk", label: "Marketplace", icon: Inbox }];
 
   return (
     <div className="min-h-screen bg-bg md:grid md:grid-cols-[240px_1fr]">
@@ -67,11 +62,9 @@ export function AppShell({ profile }: { profile: Profile }) {
             </Button>
             <Mark className="size-6 text-accent" />
           </div>
-          <p className="hidden truncate text-sm text-muted md:block">
-            {profile.companyName}
-          </p>
-          <div className="ml-auto [&_span]:max-w-[28vw] [&_span]:truncate md:[&_span]:max-w-none">
-            <UserButton />
+          <p className="hidden truncate text-sm text-muted md:block">{profile.companyName}</p>
+          <div className="ml-auto">
+            <AccountMenu profile={profile} />
           </div>
         </header>
         <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
